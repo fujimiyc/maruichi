@@ -1,65 +1,138 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import Logo from './components/Logo';
+import Scanner from './components/Scanner';
 
 export default function Home() {
+  const router = useRouter();
+  const [mode, setMode] = useState<'入室' | '退室'>('入室');
+  const [memberId, setMemberId] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('mode');
+    if (saved === '入室' || saved === '退室') {
+      setMode(saved);
+    }
+  }, []);
+
+  const handleModeChange = (newMode: '入室' | '退室') => {
+    setMode(newMode);
+    sessionStorage.setItem('mode', newMode);
+    setError('');
+  };
+
+  const lookupMember = useCallback(async (id: string) => {
+    if (isLoading) return;
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch(`/api/member?id=${id}`);
+      if (res.ok) {
+        const member = await res.json();
+        sessionStorage.setItem('memberId', member.id);
+        sessionStorage.setItem('memberName', member.name);
+        router.push('/confirm');
+      } else {
+        setError('メンバーが見つかりません');
+        setIsLoading(false);
+      }
+    } catch {
+      setError('通信エラーが発生しました');
+      setIsLoading(false);
+    }
+  }, [isLoading, router]);
+
+  const handleScan = useCallback((result: string) => {
+    lookupMember(result);
+  }, [lookupMember]);
+
+  const handleManualSubmit = (action: '入室' | '退室') => {
+    handleModeChange(action);
+    if (memberId.length === 0) {
+      setError('番号を入力してください');
+      return;
+    }
+    const padded = memberId.padStart(6, '0');
+    sessionStorage.setItem('mode', action);
+    lookupMember(padded);
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="px-6 pb-8">
+      <Logo />
+
+      {/* タブ切替 */}
+      <div className="flex border border-gray-300 rounded-md overflow-hidden mb-6">
+        <button
+          onClick={() => handleModeChange('入室')}
+          className={`flex-1 py-3 text-center font-bold text-lg transition-colors ${
+            mode === '入室'
+              ? 'bg-[#2D7A6B] text-white'
+              : 'bg-gray-200 text-gray-500'
+          }`}
+        >
+          入室
+        </button>
+        <button
+          onClick={() => handleModeChange('退室')}
+          className={`flex-1 py-3 text-center font-bold text-lg transition-colors ${
+            mode === '退室'
+              ? 'bg-black text-white'
+              : 'bg-gray-200 text-gray-500'
+          }`}
+        >
+          退室
+        </button>
+      </div>
+
+      {/* カメラスキャン */}
+      <Scanner onScan={handleScan} />
+
+      {/* エラーメッセージ */}
+      {error && (
+        <p className="text-red-500 text-center mt-4 font-bold">{error}</p>
+      )}
+
+      {/* 手動入力 */}
+      <div className="mt-6">
+        <p className="text-center font-bold mb-3">番号直接入力はこちら</p>
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          maxLength={6}
+          placeholder="000000"
+          value={memberId}
+          onChange={(e) => {
+            setMemberId(e.target.value.replace(/\D/g, ''));
+            setError('');
+          }}
+          className="w-full border border-gray-300 rounded-md px-4 py-3 text-lg text-center placeholder-red-300 focus:outline-none focus:border-[#2D7A6B]"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
+
+      {/* ボタン */}
+      <div className="flex gap-4 mt-4">
+        <button
+          onClick={() => handleManualSubmit('入室')}
+          disabled={isLoading}
+          className="flex-1 bg-[#2D7A6B] text-white py-3 rounded-md font-bold text-lg disabled:opacity-50"
+        >
+          入室
+        </button>
+        <button
+          onClick={() => handleManualSubmit('退室')}
+          disabled={isLoading}
+          className="flex-1 bg-black text-white py-3 rounded-md font-bold text-lg disabled:opacity-50"
+        >
+          退室
+        </button>
+      </div>
     </div>
   );
 }
