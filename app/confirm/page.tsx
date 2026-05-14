@@ -76,6 +76,13 @@ export default function ConfirmPage() {
           退室
         </button>
       </div>
+
+      <button
+        onClick={() => router.push('/')}
+        className="w-full py-3 mt-4 border-2 border-gray-800 rounded-md font-bold text-lg text-center hover:bg-gray-50 transition-colors"
+      >
+        もどる
+      </button>
     </div>
   );
 }
