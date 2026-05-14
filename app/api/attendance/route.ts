@@ -1,27 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { google } from 'googleapis';
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const { id, name, action } = body;
-
-  if (!id || !name || !action) {
-    return NextResponse.json({ error: 'パラメータが不足しています' }, { status: 400 });
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: '不正なリクエストです' }, { status: 400 });
   }
 
-  const filePath = path.join(process.cwd(), 'data', 'attendance.json');
-  const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  const { id, name, action } = body;
 
-  const log = {
-    id,
-    name,
-    action,
-    timestamp: new Date().toISOString(),
-  };
+  if (!id || !/^\d{6}$/.test(id)) {
+    return NextResponse.json({ error: '無効な番号です' }, { status: 400 });
+  }
+  if (!name || typeof name !== 'string' || name.length === 0 || name.length > 50) {
+    return NextResponse.json({ error: '無効な名前です' }, { status: 400 });
+  }
+  if (action !== '入室' && action !== '退室') {
+    return NextResponse.json({ error: '無効なアクションです' }, { status: 400 });
+  }
 
-  data.logs.push(log);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  try {
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}');
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    const sheets = google.sheets({ version: 'v4', auth });
+    const timestamp = new Date().toISOString();
 
-  return NextResponse.json({ success: true, log });
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
+      range: 'Sheet1!A:D',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [[id, name, action, timestamp]],
+      },
+    });
+
+    return NextResponse.json({ success: true, log: { id, name, action, timestamp } });
+  } catch (error) {
+    console.error('Attendance logging failed:', error);
+    return NextResponse.json({ error: '記録に失敗しました' }, { status: 500 });
+  }
 }

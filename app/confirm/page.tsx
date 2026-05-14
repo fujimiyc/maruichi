@@ -2,17 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Logo from '../components/Logo';
 
 export default function ConfirmPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<'入室' | '退室'>('入室');
   const [memberName, setMemberName] = useState('');
   const [memberId, setMemberId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const savedMode = sessionStorage.getItem('mode') as '入室' | '退室';
     const savedName = sessionStorage.getItem('memberName');
     const savedId = sessionStorage.getItem('memberId');
 
@@ -21,12 +18,11 @@ export default function ConfirmPage() {
       return;
     }
 
-    setMode(savedMode || '入室');
     setMemberName(savedName);
     setMemberId(savedId);
   }, [router]);
 
-  const handleConfirm = async () => {
+  const handleAction = async (action: '入室' | '退室') => {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -37,7 +33,7 @@ export default function ConfirmPage() {
         body: JSON.stringify({
           id: memberId,
           name: memberName,
-          action: mode,
+          action,
         }),
       });
 
@@ -53,37 +49,33 @@ export default function ConfirmPage() {
     }
   };
 
-  const isEntry = mode === '入室';
-
   return (
     <div className="px-6 pb-8">
-      <Logo />
+      <h1 className="text-2xl font-black text-center pt-6 pb-4">
+        まるいち入退室フォーム
+      </h1>
 
-      {/* タイトルバー */}
-      <div
-        className={`py-3 text-center font-bold text-lg text-white rounded-md mb-6 ${
-          isEntry ? 'bg-[#2D7A6B]' : 'bg-black'
-        }`}
-      >
-        {mode}
-      </div>
-
-      {/* 名前表示 */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-8 mt-4">
         <p className="text-gray-600 font-bold mb-4">お名前</p>
         <p className="text-4xl font-black">{memberName}</p>
       </div>
 
-      {/* 確認ボタン */}
-      <button
-        onClick={handleConfirm}
-        disabled={isSubmitting}
-        className={`w-full py-4 text-white font-bold text-xl rounded-md disabled:opacity-50 ${
-          isEntry ? 'bg-[#2D7A6B]' : 'bg-black'
-        }`}
-      >
-        {mode}する
-      </button>
+      <div className="flex gap-4">
+        <button
+          onClick={() => handleAction('入室')}
+          disabled={isSubmitting}
+          className="flex-1 py-4 bg-[#2D7A6B] text-white font-bold text-xl rounded-md disabled:opacity-50"
+        >
+          入室
+        </button>
+        <button
+          onClick={() => handleAction('退室')}
+          disabled={isSubmitting}
+          className="flex-1 py-4 bg-black text-white font-bold text-xl rounded-md disabled:opacity-50"
+        >
+          退室
+        </button>
+      </div>
     </div>
   );
 }
