@@ -1,36 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { google } from 'googleapis';
 
-const SHEET_NAME = '入退室一覧';
-
-async function ensureSheet(sheets: ReturnType<typeof google.sheets>, spreadsheetId: string) {
-  const meta = await sheets.spreadsheets.get({ spreadsheetId });
-  const exists = meta.data.sheets?.some(
-    (s) => s.properties?.title === SHEET_NAME
-  );
-  if (!exists) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        requests: [
-          {
-            addSheet: {
-              properties: { title: SHEET_NAME },
-            },
-          },
-        ],
-      },
-    });
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `'${SHEET_NAME}'!A1:D1`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [['番号', '名前', 'アクション', '日時']],
-      },
-    });
-  }
-}
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyHGAsWfdPzwyYrfS8MFpBStLu6rY8cXsLK_PB72eQlmuRiZy4vhI9WObUxgxRWKIGslA/exec';
 
 export async function POST(request: NextRequest) {
   let body;
@@ -53,29 +23,20 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}');
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-    const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID!;
-    const timestamp = new Date().toISOString();
-
-    await ensureSheet(sheets, spreadsheetId);
-
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: `'${SHEET_NAME}'!A:D`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [[id, name, action, timestamp]],
-      },
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name, action }),
     });
 
-    return NextResponse.json({ success: true, log: { id, name, action, timestamp } });
+    if (!res.ok) {
+      throw new Error(`GAS returned ${res.status}`);
+    }
+
+    const result = await res.json();
+    return NextResponse.json({ success: true, ...result });
   } catch (error) {
-    console.error('Attendance logging failed:', error);
+    console.error('入退室記録エラー:', error);
     return NextResponse.json({ error: '記録に失敗しました' }, { status: 500 });
   }
 }
