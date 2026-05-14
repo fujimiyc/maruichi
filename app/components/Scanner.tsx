@@ -71,7 +71,7 @@ export default function Scanner({ onScan }: ScannerProps) {
 
   if (!hasCamera) {
     return (
-      <div className="bg-gray-200 rounded-lg flex items-center justify-center aspect-[4/3]">
+      <div className="bg-gray-200 rounded-lg flex items-center justify-center aspect-[3/2]">
         <div className="text-center">
           <p className="text-red-500 font-bold text-lg">カメラスキャン</p>
           <p className="text-gray-500 text-sm mt-2">カメラを使用できません</p>
@@ -82,7 +82,7 @@ export default function Scanner({ onScan }: ScannerProps) {
   }
 
   return (
-    <div className="bg-gray-200 rounded-lg overflow-hidden aspect-[4/3] relative">
+    <div className="bg-gray-200 rounded-lg overflow-hidden aspect-[3/2] relative">
       <video
         ref={videoRef}
         autoPlay
