@@ -8,6 +8,7 @@ export default function ConfirmPage() {
   const [memberName, setMemberName] = useState('');
   const [memberId, setMemberId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittingAction, setSubmittingAction] = useState<'入室' | '退室' | null>(null);
 
   useEffect(() => {
     const savedName = sessionStorage.getItem('memberName');
@@ -22,9 +23,10 @@ export default function ConfirmPage() {
     setMemberId(savedId);
   }, [router]);
 
-  const handleAction = async (action: '入室' | '退室') => {
+  const handleConfirm = async (action: '入室' | '退室') => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setSubmittingAction(action);
 
     try {
       const res = await fetch('/api/attendance', {
@@ -33,19 +35,22 @@ export default function ConfirmPage() {
         body: JSON.stringify({
           id: memberId,
           name: memberName,
-          action,
+          action: action,
         }),
       });
 
       if (res.ok) {
+        sessionStorage.setItem('completedAction', action);
         router.push('/complete');
       } else {
         alert('エラーが発生しました');
         setIsSubmitting(false);
+        setSubmittingAction(null);
       }
     } catch {
       alert('通信エラーが発生しました');
       setIsSubmitting(false);
+      setSubmittingAction(null);
     }
   };
 
@@ -55,34 +60,43 @@ export default function ConfirmPage() {
         まるいち入退室フォーム
       </h1>
 
-      <div className="text-center mb-8 mt-4">
+      <div className="text-center mb-8">
         <p className="text-gray-600 font-bold mb-4">お名前</p>
         <p className="text-4xl font-black">{memberName}</p>
       </div>
 
-      <div className="flex gap-4">
-        <button
-          onClick={() => handleAction('入室')}
-          disabled={isSubmitting}
-          className="flex-1 py-4 bg-[#2D7A6B] text-white font-bold text-xl rounded-md disabled:opacity-50"
-        >
-          入室
-        </button>
-        <button
-          onClick={() => handleAction('退室')}
-          disabled={isSubmitting}
-          className="flex-1 py-4 bg-black text-white font-bold text-xl rounded-md disabled:opacity-50"
-        >
-          退室
-        </button>
-      </div>
+      {isSubmitting ? (
+        <div className="flex flex-col items-center py-12">
+          <div className="w-12 h-12 border-4 border-gray-200 border-t-[#2D7A6B] rounded-full animate-spin mb-6"></div>
+          <p className="text-lg font-bold text-gray-600">
+            {submittingAction === '入室' ? '入室' : '退室'}処理中...
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="flex gap-4">
+            <button
+              onClick={() => handleConfirm('入室')}
+              className="flex-1 bg-[#2D7A6B] text-white py-4 font-bold text-xl rounded-md active:opacity-70 transition-opacity"
+            >
+              入室する
+            </button>
+            <button
+              onClick={() => handleConfirm('退室')}
+              className="flex-1 bg-black text-white py-4 font-bold text-xl rounded-md active:opacity-70 transition-opacity"
+            >
+              退室する
+            </button>
+          </div>
 
-      <button
-        onClick={() => router.push('/')}
-        className="w-full py-3 mt-4 border-2 border-gray-800 rounded-md font-bold text-lg text-center hover:bg-gray-50 transition-colors"
-      >
-        もどる
-      </button>
+          <button
+            onClick={() => router.push('/')}
+            className="w-full border-2 border-gray-800 text-gray-800 py-4 font-bold text-lg rounded-md mt-4"
+          >
+            入退室画面にもどる
+          </button>
+        </>
+      )}
     </div>
   );
 }
