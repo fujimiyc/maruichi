@@ -1,6 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 
+const SHEET_NAME = '入退室一覧';
+
+async function ensureSheet(sheets: ReturnType<typeof google.sheets>, spreadsheetId: string) {
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const exists = meta.data.sheets?.some(
+    (s) => s.properties?.title === SHEET_NAME
+  );
+  if (!exists) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            addSheet: {
+              properties: { title: SHEET_NAME },
+            },
+          },
+        ],
+      },
+    });
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${SHEET_NAME}'!A1:D1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [['番号', '名前', 'アクション', '日時']],
+      },
+    });
+  }
+}
+
 export async function POST(request: NextRequest) {
   let body;
   try {
@@ -28,11 +59,14 @@ export async function POST(request: NextRequest) {
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
     const sheets = google.sheets({ version: 'v4', auth });
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID!;
     const timestamp = new Date().toISOString();
 
+    await ensureSheet(sheets, spreadsheetId);
+
     await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: 'A:D',
+      spreadsheetId,
+      range: `'${SHEET_NAME}'!A:D`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [[id, name, action, timestamp]],
