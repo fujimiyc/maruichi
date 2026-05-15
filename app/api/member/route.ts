@@ -11,15 +11,25 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const res = await fetch(`${GAS_URL}?action=lookup&id=${id}`, {
-      method: 'GET',
+    // doPostのlookupアクションを使用（doGetは未デプロイのため）
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'lookup', id }),
     });
 
     if (!res.ok) {
       throw new Error(`GAS returned ${res.status}`);
     }
 
-    const result = await res.json();
+    const text = await res.text();
+    let result;
+    try {
+      result = JSON.parse(text);
+    } catch {
+      console.error('GASレスポンス解析エラー:', text.substring(0, 200));
+      return NextResponse.json({ error: 'データの取得に失敗しました' }, { status: 500 });
+    }
 
     if (result.error) {
       return NextResponse.json({ error: result.error }, { status: 404 });
