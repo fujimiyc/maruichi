@@ -35,7 +35,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: 404 });
     }
 
-    return NextResponse.json({ id: result.id, name: result.name });
+    return NextResponse.json({
+      id: result.id,
+      name: result.name,
+      consent: result.consent === true,
+    });
   } catch (error) {
     console.error('メンバー検索エラー:', error);
     return NextResponse.json({ error: 'データの取得に失敗しました' }, { status: 500 });

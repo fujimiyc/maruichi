@@ -21,6 +21,7 @@ export default function Home() {
         const member = await res.json();
         sessionStorage.setItem('memberId', member.id);
         sessionStorage.setItem('memberName', member.name);
+        sessionStorage.setItem('memberConsent', member.consent ? '1' : '0');
         router.push('/confirm');
       } else {
         setError('メンバーが見つかりません');

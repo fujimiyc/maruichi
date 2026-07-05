@@ -7,12 +7,14 @@ export default function ConfirmPage() {
   const router = useRouter();
   const [memberName, setMemberName] = useState('');
   const [memberId, setMemberId] = useState('');
+  const [hasConsent, setHasConsent] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittingAction, setSubmittingAction] = useState<'入室' | '退室' | null>(null);
 
   useEffect(() => {
     const savedName = sessionStorage.getItem('memberName');
     const savedId = sessionStorage.getItem('memberId');
+    const savedConsent = sessionStorage.getItem('memberConsent');
 
     if (!savedName || !savedId) {
       router.push('/');
@@ -21,10 +23,18 @@ export default function ConfirmPage() {
 
     setMemberName(savedName);
     setMemberId(savedId);
+    setHasConsent(savedConsent !== '0');
   }, [router]);
 
   const handleConfirm = async (action: '入室' | '退室') => {
     if (isSubmitting) return;
+
+    // 保護者同意がない場合は入室不可（退室は可能）
+    if (action === '入室' && !hasConsent) {
+      alert('保護者の同意が確認できていないため入室できません。\nスタッフにお声がけください。');
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmittingAction(action);
 
@@ -43,7 +53,14 @@ export default function ConfirmPage() {
         sessionStorage.setItem('completedAction', action);
         router.push('/complete');
       } else {
-        alert('エラーが発生しました');
+        let message = 'エラーが発生しました';
+        try {
+          const data = await res.json();
+          if (data.error) message = data.error;
+        } catch {
+          // JSONでない場合は既定メッセージのまま
+        }
+        alert(message);
         setIsSubmitting(false);
         setSubmittingAction(null);
       }
@@ -65,6 +82,16 @@ export default function ConfirmPage() {
         <p className="text-4xl font-black">{memberName}</p>
       </div>
 
+      {!hasConsent && !isSubmitting && (
+        <div className="bg-orange-100 border-2 border-orange-400 text-orange-800 rounded-md px-4 py-3 mb-6 text-center font-bold">
+          保護者の同意が確認できていないため
+          <br />
+          入室できません。
+          <br />
+          スタッフにお声がけください。
+        </div>
+      )}
+
       {isSubmitting ? (
         <div className="flex flex-col items-center py-12">
           <div className="w-12 h-12 border-4 border-gray-200 border-t-[#2D7A6B] rounded-full animate-spin mb-6"></div>
@@ -77,7 +104,11 @@ export default function ConfirmPage() {
           <div className="flex gap-4">
             <button
               onClick={() => handleConfirm('入室')}
-              className="flex-1 bg-[#2D7A6B] text-white py-4 font-bold text-xl rounded-md active:opacity-70 transition-opacity"
+              className={`flex-1 py-4 font-bold text-xl rounded-md transition-opacity ${
+                hasConsent
+                  ? 'bg-[#2D7A6B] text-white active:opacity-70'
+                  : 'bg-gray-300 text-gray-500'
+              }`}
             >
               入室する
             </button>

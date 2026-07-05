@@ -34,6 +34,12 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await res.json();
+
+    // GAS側で拒否された場合（保護者同意なし等）はエラーとして返す
+    if (result.error) {
+      return NextResponse.json({ error: result.error }, { status: 403 });
+    }
+
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     console.error('入退室記録エラー:', error);
